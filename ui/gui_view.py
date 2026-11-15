@@ -47,7 +47,10 @@ class DesktopWindow extends Mockup {
     for label, handler in (("Minimize", "minimizeWindow"), ("Close", "closeWindow")):
         attr = f'aria-label="{label}"'
         template = template.replace(attr, attr + ' sc-camel-on-click="{{ ' + handler + ' }}"')
-    title_bar = """<style>
+    # Windows clips the outer corners. Let the theme fill the client area so
+    # a second, larger HTML radius cannot expose the WebView background.
+    window_style = """<style>
+body .app { border-radius: 0; }
 .hdr { -webkit-app-region: drag; app-region: drag; user-select: none; }
 .hdr button, .hdr button * { -webkit-app-region: no-drag; app-region: no-drag; }
 </style>"""
@@ -66,4 +69,4 @@ class DesktopWindow extends Mockup {
     licenses = re.search(r"<!--.*?-->", source, re.S)
     if licenses is None:
         raise ValueError("ui/index.html is missing its bundled font licenses.")
-    return template.replace("<head>", "<head>" + licenses[0] + resource_map + title_bar, 1)
+    return template.replace("<head>", "<head>" + licenses[0] + resource_map + window_style, 1)
