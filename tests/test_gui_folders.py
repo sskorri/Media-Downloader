@@ -20,7 +20,10 @@ class GuiFolderTests(unittest.TestCase):
 
         def download(url, destination, *args):
             release.wait(5)
-            return DownloadResult(url, "yt-dlp", True)
+            file = destination / "Instagram" / "creator" / "Reel.mp4"
+            file.parent.mkdir(parents=True)
+            file.write_bytes(b"video")
+            return DownloadResult(url, "yt-dlp", True, reveal_path=file)
 
         self.enterContext(patch("ui.gui_controller.download_single", side_effect=download))
         gui = GuiController()
@@ -30,10 +33,18 @@ class GuiFolderTests(unittest.TestCase):
         item, = gui.enqueue(reel, video=True)["items"]
         _, worker = gui._active[item["id"]]
         try:
+            self.assertFalse(item["canReveal"])
+            with self.assertRaises(ValueError):
+                gui.action(item["id"], "reveal")
             gui.save_dir("new-media")
             self.assertEqual(gui.snapshot("vm.tiktok.com/example")["preview"]["dir"], "new-media/TikTok")
         finally:
             release.set()
             worker.join(5)
         item, = gui.snapshot()["items"]
-        self.assertEqual((item["st"], item["folder"], item["dir"]), ("done", "Instagram", "media/Instagram"))
+        self.assertEqual((item["st"], item["folder"], item["dir"]), ("done", "Instagram", "media/Instagram/creator"))
+        self.assertTrue(item["canReveal"])
+        with patch("ui.gui_controller.reveal_in_folder") as reveal:
+            after, = gui.action(item["id"], "reveal")["items"]
+            reveal.assert_called_once_with(root / "media" / "Instagram" / "creator" / "Reel.mp4")
+            self.assertEqual(after, item)

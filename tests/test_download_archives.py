@@ -87,6 +87,7 @@ class DownloadArchiveTests(unittest.TestCase):
                     suffix = ".mp4" if mode else ".mp3"
                     files = list(media.rglob(f"*{suffix}"))
                     self.assertEqual(len(files), 1, files)
+                    self.assertEqual(result.reveal_path, files[0])
                     self.assertEqual(files[0].relative_to(media).parts[0], "127.0.0.1")
                     self.assertEqual([p.name for p in media.iterdir()], ["127.0.0.1"])
                     assets[files[0]] = files[0].read_bytes()
@@ -102,6 +103,7 @@ class DownloadArchiveTests(unittest.TestCase):
                 for mode in (False, True):
                     result, = process_urls([url], repeat, state, video_mode=mode)
                     self.assertTrue(result.success, result.error)
+                    self.assertIsNone(result.reveal_path)
                 self.assertEqual([p for p in repeat.rglob("*") if p.is_file()], [old_file])
                 self.assertEqual(old_file.read_bytes(), b"old copy")
                 self.assertEqual(legacy.read_text(encoding="utf-8"), "generic clip\n")

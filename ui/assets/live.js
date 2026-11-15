@@ -90,6 +90,8 @@ class Component extends DesktopWindow {
             const raw = s.items[index];
             const action = name => this.command("action", [raw.id, name]);
             const row = {...item, plat: raw.folder,
+                canReveal: raw.st === "done" && raw.canReveal,
+                reveal: () => action("reveal"),
                 act: () => action(raw.st === "fail" ? "retry" : raw.st === "done" ? "remove" : "cancel"),
                 rm: () => action("remove")
             };

@@ -4,6 +4,8 @@ Open `Media Downloader.exe` beside `cli.py` to launch the desktop app. It uses a
 
 Paste a link, choose **Audio** or **Video**, and select **Add to queue**. **Import batch file** reads one link per line. The theme switch applies immediately, including during downloads. **Settings** saves the theme, download folder, parallel downloads, and Spotify playlist threads in the app's `data/settings.json`. The app also saves its window position there when you close it.
 
+When a download finishes, select the folder icon (**Show in folder**) to highlight the saved file in Windows File Explorer. For a job that saves several files, the button opens their shared folder. The folder icon appears when the downloader reports a saved location. The trash icon removes the finished row from the queue.
+
 The interface lives in `ui/index.html`, including its embedded React renderer, fonts, and animations. A normal launch shows real jobs and history. To see the original sample queue, run this from the project directory in PowerShell:
 
 ```powershell

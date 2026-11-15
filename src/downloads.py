@@ -9,6 +9,7 @@ import sys
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import ExitStack
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -23,6 +24,7 @@ class DownloadResult:
     tool: str
     success: bool
     error: str = ""
+    reveal_path: Path | None = None
 
 
 class DownloadControl:
@@ -229,6 +231,30 @@ def build_spotdl_cmd(url: str, work_dir: Path, threads: int) -> list[str]:
     ]
 
 
+def _reveal_path(report: Path, library: Path, folder: str, scratch: Path) -> Path | None:
+    """Read this job's reported outputs. Playlists open their common folder."""
+    if not report.is_file():
+        return None  # For example, every item was already in the download archive.
+    library = library.resolve()
+    files = set()
+    with report.open(encoding="utf-8") as lines:
+        for line in lines:
+            name = line.rstrip("\r\n")
+            if not name or name.startswith("#"):  # spotDL's M3U metadata
+                continue
+            path = Path(name)
+            # The audio worker moves the finished MP3 from scratch into the
+            # library, preserving its relative path after yt-dlp reports it.
+            if path.is_relative_to(scratch):
+                path = path.relative_to(scratch)
+            path = (library / path).resolve()
+            if path.is_relative_to(library / folder) and path.is_file():
+                files.add(path)
+    if len(files) > 1:
+        return Path(os.path.commonpath([file.parent for file in files]))
+    return next(iter(files), None)
+
+
 def download_single(
     url: str, download_dir: Path, state_dir: Path,
     video_mode: bool, threads: int, control: DownloadControl | None = None,
@@ -236,12 +262,19 @@ def download_single(
     platform = detect_platform(url)
     tool = "spotdl" if platform == "spotify" else "yt-dlp"
     try:
-        with TemporaryDirectory(dir=state_dir / "tmp") as temp:
-            work_dir = Path(temp)
+        with ExitStack() as job:
+            work_dir = Path(job.enter_context(TemporaryDirectory(dir=state_dir / "tmp")))
             if platform == "spotify":
                 command = build_spotdl_cmd(url, work_dir, threads)
+                # spotDL sanitizes every component of --m3u. A job-private
+                # relative name works even if the library path has two spaces.
+                playlist_dir = Path(job.enter_context(TemporaryDirectory(dir=download_dir)))
+                report = playlist_dir / "outputs.m3u8"
+                command.extend(["--m3u", str(report.relative_to(download_dir))])
             else:
                 command = build_ytdl_cmd(url, state_dir, video_mode)
+                report = work_dir / "outputs.txt"
+                command[-2:-2] = ["--print-to-file", "after_move:%(filepath)s", str(report).replace("%", "%%")]
 
             env = backend_environment(state_dir, work_dir)
             if control is None:
@@ -267,9 +300,14 @@ def download_single(
                     return DownloadResult(url, tool, False, detail)
                 # Each concurrent job writes its own export before publishing it.
                 (work_dir / "tracks.spotdl").replace(state_dir / ".spotdl_cache.spotdl")
+            try:
+                path = _reveal_path(report, download_dir, site_folder(url), work_dir)
+            except (OSError, ValueError, RuntimeError):
+                # Revealing is optional; the engine already saved the media.
+                path = None
     except OSError as exc:
         return DownloadResult(url, tool, False, str(exc))
-    return DownloadResult(url, tool, True)
+    return DownloadResult(url, tool, True, reveal_path=path)
 
 
 def process_urls(

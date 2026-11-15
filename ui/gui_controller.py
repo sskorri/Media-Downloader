@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 
 from src import storage
 from src.downloads import DownloadControl, DownloadResult, detect_platform, download_single, site_folder
+from ui.explorer import reveal_in_folder
 
 
 def _display_dir(path: Path) -> str:
@@ -36,11 +37,12 @@ class QueueItem:
     percent: int | None = 0
     error: str = ""
     destination: str = ""
+    reveal_path: Path | None = None
 
     def snapshot(self):
         return {"id": self.id, "url": self.url.split("://", 1)[1], "plat": self.platform, "folder": self.folder,
                 "video": self.video, "st": self.state, "pct": self.percent,
-                "error": self.error, "dir": self.destination}
+                "error": self.error, "dir": self.destination, "canReveal": self.reveal_path is not None}
 
 
 class GuiController:
@@ -142,6 +144,10 @@ class GuiController:
                 if item.id in self._items and not control.cancelled:
                     item.state = "done" if result.success else "fail"
                     item.percent = 100 if result.success else 0
+                    if result.success and result.reveal_path is not None:
+                        item.reveal_path = result.reveal_path
+                        folder = item.reveal_path if item.reveal_path.is_dir() else item.reveal_path.parent
+                        item.destination = _display_dir(folder)
                     lines = result.error.splitlines()
                     errors = [line for line in lines if line.startswith("ERROR:")]
                     item.error = (errors or lines or [""])[-1][:1200]
@@ -153,11 +159,14 @@ class GuiController:
 
     def action(self, item_id, action):
         control = None
+        reveal_path = None
         with self._lock:
             item = self._items.get(item_id)
             if item is None:
                 return self.snapshot()
-            if action == "retry" and item.state == "fail":
+            if action == "reveal" and item.state == "done" and item.reveal_path is not None:
+                reveal_path = item.reveal_path
+            elif action == "retry" and item.state == "fail":
                 item.state, item.error, item.percent = "queue", "", 0
             elif action in ("cancel", "remove"):
                 if item.id in self._active:
@@ -168,6 +177,8 @@ class GuiController:
             self._schedule()
         if control is not None:
             control.cancel()
+        if reveal_path is not None:
+            reveal_in_folder(reveal_path)
         return self.snapshot()
 
     def clear_finished(self):
