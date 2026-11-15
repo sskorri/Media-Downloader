@@ -2,7 +2,7 @@
 
 Open `Media Downloader.exe` beside `cli.py` to launch the desktop app. It uses a local `.venv`, your installed media tools, and Microsoft Edge WebView2. Keep the EXE beside the app files when you move it.
 
-Paste a link, choose **Audio MP3** or **Video**, and select **Add to queue**. **Import batch file** reads one link per line. The theme switch applies immediately, including during downloads. **Settings** saves the theme, download folder, parallel downloads, and Spotify playlist threads in the app's `data/settings.json`.
+Paste a link, choose **Audio** or **Video**, and select **Add to queue**. **Import batch file** reads one link per line. The theme switch applies immediately, including during downloads. **Settings** saves the theme, download folder, parallel downloads, and Spotify playlist threads in the app's `data/settings.json`. The app also saves its window position there when you close it.
 
 The interface lives in `ui/index.html`, including its embedded React renderer, fonts, and animations. A normal launch shows real jobs and history. To see the original sample queue, run this from the project directory in PowerShell:
 
@@ -29,7 +29,7 @@ To build for a PC without Python or the media tools, use `.\ui\windows\build_gui
 
 ## Supported links
 
-The GUI and CLI accept the same links. Choose **Video** in the GUI or use `-v` in the CLI to keep video. **Audio MP3** extracts a soundtrack when the source has audio.
+The GUI and CLI accept the same links. Choose **Video** in the GUI or use `-v` in the CLI to keep video. **Audio** saves the soundtrack as an MP3 when the source has audio.
 
 | Source | Examples |
 | --- | --- |

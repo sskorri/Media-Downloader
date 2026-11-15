@@ -111,6 +111,18 @@ def set_gui_preference(key: str, value) -> None:
     _update_setting(key, _gui_preference(key, value))
 
 
+def read_window_position() -> tuple[int, int] | None:
+    position = _settings().get("window_position")
+    if (isinstance(position, list) and len(position) == 2
+            and all(type(n) is int and -(2**31) <= n < 2**31 for n in position)):
+        return position[0], position[1]
+    return None
+
+
+def set_window_position(x: int, y: int) -> None:
+    _update_setting("window_position", [x, y])
+
+
 def _directory(value: str, relative_to: Path) -> Path:
     if not isinstance(value, str) or not value.strip():
         raise ValueError("The download directory must be a nonempty path.")

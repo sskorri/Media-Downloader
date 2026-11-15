@@ -63,6 +63,36 @@ class DownloadApi(WindowControls):
         return self._controller.set_pref(key, value)
 
 
+def _fit_window_position(position, size, work_areas):
+    """Preserve a visible placement, including across displays, or use the closest work area."""
+    x, y = position
+    width, height = size
+    corners = ((x, y), (x + width - 1, y), (x, y + height - 1), (x + width - 1, y + height - 1))
+    if all(any(left <= px < right and top <= py < bottom for left, top, right, bottom in work_areas)
+           for px, py in corners):
+        return position
+
+    candidates = [(max(left, min(x, right - width)), max(top, min(y, bottom - height)))
+                  for left, top, right, bottom in work_areas]
+    return min(candidates, key=lambda p: (p[0] - x)**2 + (p[1] - y)**2)
+
+
+def _restore_window_position(form):
+    from System.Drawing import Point
+    from System.Windows.Forms import FormStartPosition, Screen
+
+    position = storage.read_window_position()
+    if position is None:
+        return  # The regular first launch centers the window.
+    areas = [s.WorkingArea for s in Screen.AllScreens]
+    if areas:
+        work_areas = [(a.Left, a.Top, a.Right, a.Bottom) for a in areas]
+        form.StartPosition = FormStartPosition.Manual
+        # Use WinForms coordinates for both saving and restoring. pywebview's
+        # logical x/y coordinates are scaled according to the current monitor.
+        form.Location = Point(*_fit_window_position(position, (form.Width, form.Height), work_areas))
+
+
 def create_window(webview, page, api):
     window = webview.create_window(
         "Media Downloader", html=page, js_api=api, width=960, height=640, min_size=(960, 640),
@@ -97,7 +127,16 @@ def create_window(webview, page, api):
 
         browser.CoreWebView2InitializationCompleted += enable_title_bar
 
+    def save_position():
+        from System.Windows.Forms import FormWindowState
+
+        form = window.native
+        bounds = form.Bounds if form.WindowState == FormWindowState.Normal else form.RestoreBounds
+        storage.set_window_position(bounds.X, bounds.Y)
+
     window.events.before_show += configure_browser
+    window.events.before_show += lambda: _restore_window_position(window.native)
+    window.events.closing += save_position
     return window
 
 
