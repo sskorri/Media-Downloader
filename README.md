@@ -1,5 +1,3 @@
-# Just Another Media Downloader
-
 ## Windows desktop app
 
 Open `Media Downloader.exe` beside `cli.py` to launch the desktop app. It uses a local `.venv`, your installed media tools, and Microsoft Edge WebView2. Keep the EXE beside the app files when you move it.
