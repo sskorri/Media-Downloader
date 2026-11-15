@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+/data/
+/media/
+/build/
+/dist/
+/Media Downloader.exe
